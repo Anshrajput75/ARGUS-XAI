@@ -1,0 +1,29 @@
+name: ci
+on: { push: { branches: [main] }, pull_request: {} }
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: { python: ["3.10", "3.11", "3.12"] }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ matrix.python }}", cache: pip }
+      - run: pip install -e ".[dev,boost,xai,api]"
+      - run: ruff check src api tests experiments
+      - run: pytest -q
+  test-torch:                     # exercises the PyTorch AE/VAE/GraphSAGE code paths
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11", cache: pip }
+      - run: pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - run: pip install -e ".[dev,boost,xai,api]"
+      - run: pytest -q
+      - run: python experiments/experiment_01_baseline/run.py --seeds 0 --n-flows 8000
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -f docker/Dockerfile -t argus-xai .

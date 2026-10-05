@@ -1,0 +1,46 @@
+# Run from the repo root:  docker compose -f docker/docker-compose.yml up --build
+x-app: &app
+  build: { context: .., dockerfile: docker/Dockerfile }
+  image: argus-xai:latest
+  environment: &env
+    ARGUS_MODEL_DIR: /models/model
+    DATABASE_URL: postgresql+psycopg2://argus:argus@postgres:5432/argus
+    REDIS_URL: redis://redis:6379/0
+    MLFLOW_TRACKING_URI: http://mlflow:5000
+  volumes: [ "models:/models" ]
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment: { POSTGRES_USER: argus, POSTGRES_PASSWORD: argus, POSTGRES_DB: argus }
+    volumes: [ "pgdata:/var/lib/postgresql/data" ]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U argus"], interval: 5s, retries: 10 }
+  redis:
+    image: redis:7-alpine
+  mlflow:
+    <<: *app
+    command: >
+      mlflow server --host 0.0.0.0 --port 5000
+      --backend-store-uri sqlite:////mlflow/mlflow.db
+      --artifacts-destination /mlflow/artifacts --serve-artifacts
+    volumes: [ "mlflow:/mlflow" ]
+    ports: [ "5000:5000" ]
+  trainer:                       # one-shot: trains + registers the model, then exits
+    <<: *app
+    command: python -m argus.cli train --n-flows 30000 --out /models/model
+    depends_on: { mlflow: { condition: service_started } }
+    restart: "no"
+  api:
+    <<: *app
+    ports: [ "8000:8000" ]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_started }
+      trainer: { condition: service_completed_successfully }
+  dashboard:
+    <<: *app
+    command: streamlit run dashboard/app.py --server.port 8501 --server.address 0.0.0.0
+    ports: [ "8501:8501" ]
+    depends_on: { trainer: { condition: service_completed_successfully } }
+
+volumes: { pgdata: {}, mlflow: {}, models: {} }

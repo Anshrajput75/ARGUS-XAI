@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you use ARGUS-XAI, please cite it as below."
+title: "ARGUS-XAI: An Explainable, Continually Learning Network Anomaly Intelligence Platform"
+type: software
+version: 0.1.0
+authors:
+  - family-names: "<LAST NAME>"
+    given-names: "<FIRST NAME>"
+license: MIT
+repository-code: "https://github.com/<your-username>/ARGUS-XAI"

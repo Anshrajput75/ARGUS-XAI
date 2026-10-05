@@ -1,0 +1,28 @@
+seed: 42
+data:
+  source: synthetic          # synthetic | cicids | unsw
+  path: data/raw             # folder with CSVs when source != synthetic
+  n_flows: 40000
+  known_attacks: [DDoS, BruteForce, PortScan]
+  unknown_attacks: [WebAttack, Botnet]
+  test_size: 0.30
+  val_size: 0.15
+features:
+  window: 60.0               # seconds, tumbling window for host aggregates and graph snapshots
+  baseline_frac: 0.25        # first 25% of the timeline defines "previously seen hosts"
+  use_novelty: true
+models:
+  supervised: {backend: auto, n_estimators: 200, max_depth: 6, learning_rate: 0.1}
+  autoencoder: {hidden: [32, 16, 8], epochs: 30, lr: 0.001, batch_size: 256, variational: false, backend: auto}
+  graph: {hidden: 32, epochs: 80, lr: 0.005, backend: auto}
+hybrid:
+  fusion: max                # max | noisy_or | mean
+  weights: {supervised: 1.0, autoencoder: 1.0, graph: 1.0}
+  target_fpr: 0.05
+  known_class_confidence: 0.6
+  z_offset: 2.0
+continual:
+  replay_capacity: 4000
+  feedback_per_class: 400
+  drift_psi_threshold: 0.2
+artifacts_dir: artifacts/model
